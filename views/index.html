@@ -10,18 +10,18 @@
     <h1>Exercise Tracker</h1>
     <hr>
     <main>
-        <form>
+        <form action="/api/users" method="post">
             <h2>Create New User</h2>
             <p><code>POST /api/users</code></p>
-            <input type="text" name="username" id="username" placeholder="Username*">
+            <input type="text" name="username" id="username" placeholder="Username*" required>
             <input type="submit" value="Create User">
         </form>
-        <form>
+        <form method="post" id="exercise-form">
             <h2>Add Exercise</h2>
             <p><code>POST /api/users/:_id/exercises</code></p>
-            <input type="text" name="user-id" id="user-id" placeholder=":_id">
-            <input type="text" name="description" id="description" placeholder="Description*">
-            <input type="number" name="duration" id="duration" placeholder="Duration*">
+            <input type="text" name=":_id" id="userId" placeholder=":_id" required>
+            <input type="text" name="description" id="description" placeholder="Description*" required>
+            <input type="number" name="duration" id="duration" placeholder="Duration*" required>
             <input type="text" name="date" id="date" placeholder="date (yyyy-mm-dd)">
             <input type="submit" value="Add Exercise">
         </form>
@@ -31,5 +31,6 @@
             <p><strong>from, to</strong> = dates (yyyy-mm-dd); <strong>limit</strong> = number</p>
         </article>
     </main>
+    <script src="/js/main.js"></script>
 </body>
 </html>
