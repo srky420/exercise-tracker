@@ -86,8 +86,10 @@ app.post("/api/users/:_id/exercises", validateExerciseData, (req, res) => {
 app.get('/api/users/:_id/logs', async (req, res) => {
     // Get userId from url params
     const userId = req.params._id;
+    // Get query string params
+    const { from, to, limit } = req.query;
 
-    getUserLogs(userId, (err, doc) => {
+    getUserLogs(userId, { from: from, to: to, limit: parseInt(limit) }, (err, doc) => {
         if (err) {
             console.error(err);
             res.status(500).json({ error: 'Error retrieving data' });
@@ -101,7 +103,8 @@ app.get('/api/users/:_id/logs', async (req, res) => {
 
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await UserModel.find({}).select('-log');
+        // Find users
+        const users = await UserModel.find({});
         console.log(users);
         res.status(200).json(users);
     }
@@ -142,14 +145,9 @@ const createNewExercise = async (userId, description, duration, date, done) => {
         });
         const savedExercise = await exercise.save();
 
-        // Set exercise in user
-        user.log.push(savedExercise._id);
-
-        const savedUser = await user.save();
-        
         done(null, {
-            username: savedUser.username,
-            _id: savedUser._id,
+            username: user.username,
+            _id: user._id,
             description: savedExercise.description,
             duration: savedExercise.duration,
             date: savedExercise.date
@@ -160,14 +158,28 @@ const createNewExercise = async (userId, description, duration, date, done) => {
     }
 }
 
-const getUserLogs = async (userId, done) => {
+const getUserLogs = async (userId, filters, done) => {
     try {
         // Get user doc
-        let user = await UserModel.findById(userId).populate('log', { _id: 0, description: 1, duration: 1, date: 1 }).select({
-            username: 1, count: { $size: '$log' }, log: 1
+        let user = await UserModel.findById(userId);
+        
+        // Get exercises belonging to the user
+        let query = ExerciseModel.find({ user: user._id })
+            .select('-_id description duration date')
+            .limit(filters.limit);
+
+        // Apply valid date filters
+        isValidDate(filters.from) && query.find({ date: { $gte: filters.from } });
+        isValidDate(filters.to) && query.find({ date: { $lte: filters.to } });
+
+        let exercises = await query.exec();
+
+        done(null, {
+            _id: user._id,
+            username: user.username,
+            count: exercises.length,
+            log: exercises
         });
-    
-        done(null, user);
     }
     catch (e) {
         done(e);
