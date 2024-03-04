@@ -17,7 +17,7 @@ app.use(cors());
 const validateExerciseData = (req, res, next) => {
     const { description, duration, date } = req.body;
 
-    if (description !== '' && /^\d+$/.test(duration) && (isValidDate(date) || date === '')) {
+    if (description !== '' && /^\d+$/.test(duration) && (isValidDate(date) || date === '') && date) {
         next();
     }
     else {
@@ -63,7 +63,7 @@ app.post('/api/users', (req, res) => {
 });
 
 // Create exercise route
-app.post("/api/users/:_id/exercises", validateExerciseData, (req, res) => {
+app.post("/api/users/:_id/exercises", (req, res) => {
 
     // Gather data
     const { description, date } = req.body;
@@ -83,13 +83,13 @@ app.post("/api/users/:_id/exercises", validateExerciseData, (req, res) => {
     });
 });
 
-app.get('/api/users/:_id/logs', async (req, res) => {
+app.get('/api/users/:_id/logs', (req, res) => {
     // Get userId from url params
     const userId = req.params._id;
     // Get query string params
     const { from, to, limit } = req.query;
 
-    getUserLogs(userId, { from: from, to: to, limit: parseInt(limit) }, (err, doc) => {
+    getUserLogs(userId, from, to, parseInt(limit), (err, doc) => {
         if (err) {
             console.error(err);
             res.status(500).json({ error: 'Error retrieving data' });
@@ -140,7 +140,7 @@ const createNewExercise = async (userId, description, duration, date, done) => {
         const exercise = new ExerciseModel({
             description: description,
             duration: duration,
-            date: date ? date : Date.now(),
+            date: date ? new Date(date) : new Date(),
             user: user._id
         });
         const savedExercise = await exercise.save();
@@ -150,7 +150,7 @@ const createNewExercise = async (userId, description, duration, date, done) => {
             _id: user._id,
             description: savedExercise.description,
             duration: savedExercise.duration,
-            date: savedExercise.date
+            date: new Date(savedExercise.date).toDateString()
         });
     }
     catch (e) {
@@ -158,27 +158,35 @@ const createNewExercise = async (userId, description, duration, date, done) => {
     }
 }
 
-const getUserLogs = async (userId, filters, done) => {
+const getUserLogs = async (userId, from, to, limit, done) => {
     try {
+        
         // Get user doc
         let user = await UserModel.findById(userId);
+        if (!user) {
+            return done(null, { message: 'No user found' })
+        }
         
-        // Get exercises belonging to the user
-        let query = ExerciseModel.find({ user: user._id })
-            .select('-_id description duration date')
-            .limit(filters.limit);
+        // Create query
+        let date = {};
+        let query = { user: user._id };
 
-        // Apply valid date filters
-        isValidDate(filters.from) && query.find({ date: { $gte: filters.from } });
-        isValidDate(filters.to) && query.find({ date: { $lte: filters.to } });
+        // Validate filters
+        if (isValidDate(from)) date['$gte'] = new Date(from);
+        if (isValidDate(to)) date['$lte'] = new Date(to);
+        if (isValidDate(to) || isValidDate(from)) query['date'] = date;
 
-        let exercises = await query.exec();
+        let exercises = await ExerciseModel.find(query).limit(+limit);
 
         done(null, {
-            _id: user._id,
             username: user.username,
             count: exercises.length,
-            log: exercises
+            _id: user._id,
+            log: exercises.map(ex => ({
+                description: ex.description,
+                duration: ex.duration,
+                date: ex.date.toDateString()
+            }))
         });
     }
     catch (e) {

@@ -14,14 +14,12 @@ let exerciseSchema = new mongoose.Schema({
     },
     date: {
         type: Date,
-        required: false,
-        default: Date.now,
-        get: d => d.toDateString()
+        required: true,
     },
     user: {
         type: Schema.Types.ObjectId,
         ref: 'User'
     }
-}, { toJSON: { getters: true, virtuals: false }, toObject: { getters: true, virtuals: false } });
+});
 
 module.exports = mongoose.model('Exercise', exerciseSchema);
